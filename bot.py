@@ -2,64 +2,48 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import requests
-import os
+import json
 
-# Logging सेटअप (debug के लिए)
+# Logging setup (debug के लिए)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuration
-TELEGRAM_TOKEN = '8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE'  # यहां अपना token डालें
-API_URL = 'https://gemini-1-5-flash.bjcoderx.workers.dev/?text=hello'  # API endpoint
-API_KEY = 'YOUR_API_KEY'  # अगर API key required है, वरना '' रखें
+# API endpoint
+GEMINI_API_URL = "https://gemini-1.5-flash.bjcoderx.workers.dev/"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """ /start command handler """
-    await update.message.reply_text('नमस्ते! मुझे कोई text भेजें, मैं उसे video में convert करके भेज दूंगा।')
+    """Bot start command का handler"""
+    await update.message.reply_text('नमस्ते! मुझे कोई message भेजें, मैं Gemini AI से response दूंगा। (अगर API काम करे तो 😊)')
 
-async def generate_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """ Text message handler: API call और video send """
-    user_text = update.message.text
-    await update.message.reply_text('Video generate हो रही है... थोड़ा इंतजार करें! ⏳')
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """User message को API भेजने का handler"""
+    user_message = update.message.text
+    await update.message.reply_text("Thinking... (Gemini AI से response आ रहा है)")
 
+    # API call
     try:
-        # API request payload (assume JSON format; adjust as per actual API)
-        payload = {
-            'text': user_text,
-            'api_key': API_KEY  # अगर required हो
-        }
-        
-        # POST request
-        response = requests.post(API_URL, json=payload, timeout=60)
-        response.raise_for_status()  # Error अगर status code bad हो
-        
-        # Assume response में video URL या base64 data है; adjust accordingly
+        response = requests.get(f"{GEMINI_API_URL}?text={user_message}")
         data = response.json()
-        video_url = data.get('video_url')  # या data['video'] अगर direct URL हो
         
-        if video_url:
-            # Video download (अगर URL है) या direct send
-            await update.message.reply_video(video=video_url, caption='यह आपकी generated video है! 🎥')
+        if data.get("success"):
+            ai_reply = data.get("response", "कोई response नहीं मिला।")
+            await update.message.reply_text(ai_reply)
         else:
-            await update.message.reply_text('Video generate नहीं हो सकी। Error: ' + str(data))
-            
-    except requests.exceptions.RequestException as e:
-        logger.error(e)
-        await update.message.reply_text('API call में error आ गई। कृपया बाद में try करें।')
+            await update.message.reply_text(f"Error: {data.get('error', 'Unknown error')}। API अभी काम नहीं कर रहा। Try again later!")
     except Exception as e:
-        logger.error(e)
-        await update.message.reply_text('कुछ गड़बड़ हो गई। Admin को बताएं।')
+        logger.error(f"API call failed: {e}")
+        await update.message.reply_text("Sorry, कुछ technical issue है। बाद में try करें!")
 
 def main() -> None:
-    """ Bot run करने का main function """
-    # Application create
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    """Bot run करने का main function"""
+    # Bot token replace करें
+    application = Application.builder().token("8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE").build()
 
     # Handlers add करें
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_video))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Bot start
+    # Bot start करें
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
