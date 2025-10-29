@@ -1,38 +1,66 @@
+import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import requests
 import os
 
-TOKEN = os.environ.get("8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE")  # ya direct token
+# Logging सेटअप (debug के लिए)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-API_URL = "http://texttovideov2.alphaapi.workers.dev/api/"
+# Configuration
+TELEGRAM_TOKEN = '8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE'  # यहां अपना token डालें
+API_URL = 'http://texttovideov2.alphaapi.workers.dev/api/'  # API endpoint
+API_KEY = 'YOUR_API_KEY'  # अगर API key required है, वरना '' रखें
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Send me a text and I’ll make a video from it!")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """ /start command handler """
+    await update.message.reply_text('नमस्ते! मुझे कोई text भेजें, मैं उसे video में convert करके भेज दूंगा।')
 
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def generate_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """ Text message handler: API call और video send """
     user_text = update.message.text
-    await update.message.reply_text("Creating your video, please wait...")
+    await update.message.reply_text('Video generate हो रही है... थोड़ा इंतजार करें! ⏳')
+
     try:
-        # Example request — adjust parameters per API spec
-        resp = requests.post(API_URL, json={"prompt": user_text})
-        resp.raise_for_status()
-        data = resp.json()
-        # Suppose API returns a 'video_url'
-        video_url = data.get("video_url")
-        if not video_url:
-            await update.message.reply_text("Sorry, couldn’t get a video from API.")
-            return
-        # Send video to user
-        await context.bot.send_video(chat_id=update.effective_chat.id, video=video_url)
+        # API request payload (assume JSON format; adjust as per actual API)
+        payload = {
+            'text': user_text,
+            'api_key': API_KEY  # अगर required हो
+        }
+        
+        # POST request
+        response = requests.post(API_URL, json=payload, timeout=60)
+        response.raise_for_status()  # Error अगर status code bad हो
+        
+        # Assume response में video URL या base64 data है; adjust accordingly
+        data = response.json()
+        video_url = data.get('video_url')  # या data['video'] अगर direct URL हो
+        
+        if video_url:
+            # Video download (अगर URL है) या direct send
+            await update.message.reply_video(video=video_url, caption='यह आपकी generated video है! 🎥')
+        else:
+            await update.message.reply_text('Video generate नहीं हो सकी। Error: ' + str(data))
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+        await update.message.reply_text('API call में error आ गई। कृपया बाद में try करें।')
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        logger.error(e)
+        await update.message.reply_text('कुछ गड़बड़ हो गई। Admin को बताएं।')
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    app.run_polling()
+def main() -> None:
+    """ Bot run करने का main function """
+    # Application create
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-if __name__ == "__main__":
+    # Handlers add करें
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_video))
+
+    # Bot start
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == '__main__':
     main()
