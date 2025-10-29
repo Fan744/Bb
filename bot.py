@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import os, requests
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # apna token yahan set karo
+TOKEN = os.getenv("8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE")  # apna token yahan set karo
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Hi! Send /video <your prompt> to create a video.")
