@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 TELEGRAM_TOKEN = '8369100760:AAEEkuwbZz0eOghLboKeP1qN2l9tJd0OdwE'  # यहां अपना token डालें
-API_URL = 'http://texttovideov2.alphaapi.workers.dev/api/'  # API endpoint
+API_URL = 'https://gemini-1-5-flash.bjcoderx.workers.dev/?text=hello'  # API endpoint
 API_KEY = 'YOUR_API_KEY'  # अगर API key required है, वरना '' रखें
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
